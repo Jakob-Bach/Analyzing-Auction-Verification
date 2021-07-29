@@ -12,6 +12,32 @@ import pathlib
 import pandas as pd
 
 
+# Budgets are fixed for whole dataset anyway, but can help to engineer new high-level features.
+BUDGETS = pd.DataFrame(data={'b1': [90, 90, 90, 60, 90, 90], 'b2': [90, 80, 80, 80, 80, 80],
+                             'b3': [70, 80, 70, 70, 70, 60], 'b4': [60, 60, 70, 60, 90, 60]},
+                       index=[f'p{i}' for i in range(1, 7)]).transpose()
+
+
+# Add new features representing differences between the verified price and the bidders' budgets.
+# Modify "dataset" in-place.
+def add_budget_features(dataset: pd.DataFrame) -> None:
+    # Compare price to budget aggregated over all bidders who have capacity left
+    budgets_max = dataset.aggregate(
+        lambda row: BUDGETS.iloc[(row[[x for x in row.index if 'capacity' in x]] > 0).to_list(),
+                                 row['property.product'] - 1].max(), axis='columns')
+    budgets_2nd = dataset.aggregate(
+        lambda row: BUDGETS.iloc[(row[[x for x in row.index if 'capacity' in x]] > 0).to_list(),
+                                 row['property.product'] - 1].sort_values()[-2], axis='columns')
+    dataset['price_diff.max_budget'] = dataset['property.price'] - budgets_max
+    dataset['price_diff.2nd_budget'] = dataset['property.price'] - budgets_2nd
+    # Compare price to budget of bidder who is verified as potential winner
+    is_winner_row = dataset['property.winner'].notna()
+    budgets_winner = BUDGETS.values[(dataset.loc[is_winner_row, 'property.winner'] - 1).to_list(),
+                                    (dataset.loc[is_winner_row, 'property.product'] - 1).to_list()]
+    dataset.loc[is_winner_row, 'price_diff.winner_budget'] =\
+        dataset.loc[is_winner_row, 'property.price'] - budgets_winner
+
+
 # Add various id features by modifying "dataset" in-place.
 def add_id_features(dataset: pd.DataFrame) -> None:
     # Identify product permutations (all start with same capacity after winner for last product of
