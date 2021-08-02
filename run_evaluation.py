@@ -9,7 +9,9 @@ Usage: python -m run_evaluation --help
 import argparse
 import pathlib
 
+import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
 
 
 # Run the full evaluation pipeline. To that end, read experiments' input files from "data_dir",
@@ -79,6 +81,70 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     print('\nHow many distinct revenues are there per product-price allocation?')
     print(pd.concat([dataset.groupby(f'allocation.p{i}.price')['allocation.revenue'].nunique().rename_axis(
         'price').rename(f'p{i}') for i in range(1, 7)], axis='columns').fillna(0).astype(int))
+
+    corr_matrix_pearson = dataset.corr(method='pearson')
+    print('\nPearson correlation of prices to revenue:')
+    print(corr_matrix_pearson.loc[[f'allocation.p{i}.price' for i in range(1, 7)],
+                                  'allocation.revenue'].sort_values().round(2))
+
+    # --Verification result--
+
+    print('\nHow often do different verification results occur?')
+    print((dataset['verification.result'].value_counts() / len(dataset)).round(2))
+
+    print('\nHow often are bidders verified positively as winners?')
+    print(dataset.groupby('property.winner')['verification.result'].mean().round(2))
+
+    print('\nHow often are products verified positively?')
+    print(dataset.groupby('property.product')['verification.result'].mean().round(2))
+
+    print('\nHow often are prices verified positively?')
+    print(dataset.groupby('property.price')['verification.result'].mean())
+
+    # --Verification time--
+
+    print('\nHow is verification time (in s) distributed?')
+    print((dataset['verification.time'] / 1000).describe().round(2))
+
+    print('\nHow does verification time vary between product positions?')
+    print(dataset.groupby('id.product_position')['verification.time'].describe().round().transpose())
+
+    print('\nWhat is the average verification time per capacity of an individual bidder?')
+    print(pd.concat([dataset.groupby(f'process.b{i}.capacity')['verification.time'].mean().rename_axis(
+        'capacity').rename(f'b{i}') for i in range(1, 5)], axis='columns').fillna(0).round())
+
+    # Figure 2
+    plot_data = dataset[[f'process.b{i}.capacity' for i in range(1, 5)] + ['verification.time']].melt(
+        id_vars='verification.time', value_vars=[f'process.b{i}.capacity' for i in range(1, 5)],
+        value_name='Capacity', var_name='Bidder')
+    plot_data['Bidder'] = plot_data['Bidder'].str.extract('process.b([0-9]).capacity').astype(int)
+    plot_data['verification.time'] = plot_data['verification.time'] / 1000
+    plt.figure(figsize=(4, 3))
+    sns.boxplot(x='Bidder', y='verification.time', hue='Capacity', data=plot_data, fliersize=0,
+                palette='OrRd')
+    plt.ylabel('Verification time (seconds)')
+    plt.legend(title='Capacity', edgecolor='white', loc='upper right', framealpha=0)
+    plt.tight_layout()
+    plt.savefig(plot_dir / 'time-vs-capacity.pdf')
+
+    print('\nHow does mean verification time vary between products?')
+    print(dataset.groupby('property.product')['verification.time'].describe().round().transpose())
+
+    print('\nHow does mean verification time vary between bidders verified as winners?')
+    print(dataset.groupby('property.winner')['verification.time'].describe().round().transpose())
+
+    print('\nWhat is the average verification time per price?')
+    print(dataset.groupby('property.price')['verification.time'].mean().round())
+
+    print('\nHow does mean verification time vary between price and winner verification?')
+    print(dataset.groupby(dataset['property.winner'].notna())['verification.time'].describe().transpose())
+
+    print('\nCorrelation between verification result and verification time is',
+          dataset['verification.result'].corr(dataset['verification.time'], method='pearson').round(2), '(Pearson),',
+          dataset['verification.result'].corr(dataset['verification.time'], method='spearman').round(2), '(Spearman).')
+
+    print('\nPearson correlation of features to verification time:')
+    print(corr_matrix_pearson['verification.time'].sort_values().round(2))
 
 
 # Parse some command line argument and run evaluation.
