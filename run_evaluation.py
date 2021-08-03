@@ -27,6 +27,7 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
         print('Plot directory is not empty. Files might be overwritten, but not deleted.')
 
     dataset = prepare_dataset.load_dataset(data_dir=data_dir)
+    results = pd.read_csv(results_dir / 'prediction_results.csv')
 
     # ------Dataset------
 
@@ -145,6 +146,37 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
 
     print('\nPearson correlation of features to verification time:')
     print(corr_matrix_pearson['verification.time'].sort_values().round(2))
+
+    # ----Predicting the Data----
+
+    # --Verification result--
+
+    print('\nWhat is the prediction performance for verification result?')
+    print(results[results['target'] == 'verification.result'].groupby(['split_method', 'n_trees'])[
+        ['train_score', 'test_score']].agg(['min', 'mean', 'median']).round(2))
+
+    print('\nWhere is the test MCC for verification result lower than 0.9?')
+    print(results.loc[(results['target'] == 'verification.result') & (results['test_score'] < 0.9),
+                      ['fold_id', 'split_method', 'n_trees']])
+
+    importance_cols = [x for x in results.columns if x.startswith(('imp_'))]
+    print('\nHow does feature importance vary between and within the number of trees?')
+    print(results[results['target'] == 'verification.result'].groupby('n_trees')[
+        importance_cols].agg(['mean', 'std']).round(3).transpose().dropna())
+
+    print('\nHow does feature importance vary between the split methods?')
+    print(results[results['target'] == 'verification.result'].groupby('split_method')[
+        importance_cols].mean().round(2).transpose().dropna())
+
+    # Figure 3
+    plot_data = results[(results['target'] == 'verification.result')].melt(
+        value_vars=importance_cols, var_name='Feature', value_name='Importance').dropna()
+    plot_data['Feature'] = plot_data['Feature'].str.replace('(imp_|process\\.|property\\.)', '')
+    plt.figure(figsize=(4, 3))
+    sns.boxplot(x='Feature', y='Importance', data=plot_data, fliersize=0, color='orange')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig(plot_dir / 'importance-result.pdf')
 
 
 # Parse some command line argument and run evaluation.
