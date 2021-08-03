@@ -117,6 +117,15 @@ def prepare_dataset(data_dir: pathlib.Path) -> None:
     dataset.to_csv(data_dir / 'auction_verification_large.csv', index=False)
 
 
+# Load dataset with proper columns types
+def load_dataset(data_dir: pathlib.Path) -> pd.DataFrame:
+    dataset = pd.read_csv(data_dir / 'auction_verification_large.csv')
+    float_cols = dataset.dtypes[dataset.dtypes == 'float'].index  # are int, but contain NAs
+    dataset[float_cols] = dataset[float_cols].astype('Int64')  # Int64 allows NAs
+    dataset['property.formula'] = dataset['property.formula'].astype('string')
+    return dataset
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Merges and pre-processes the results files from the verification algorithm.',

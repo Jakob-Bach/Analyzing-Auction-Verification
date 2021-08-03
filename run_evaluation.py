@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+import prepare_dataset
+
 
 # Run the full evaluation pipeline. To that end, read experiments' input files from "data_dir",
 # experiments' results files from the "results_dir" and save plots to the "plot_dir".
@@ -24,9 +26,7 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     if len(list(plot_dir.glob('*.pdf'))) > 0:
         print('Plot directory is not empty. Files might be overwritten, but not deleted.')
 
-    dataset = pd.read_csv(data_dir / 'auction_verification_large.csv')
-    float_cols = dataset.dtypes[dataset.dtypes == 'float'].index
-    dataset[float_cols] = dataset[float_cols].astype('Int64')
+    dataset = prepare_dataset.load_dataset(data_dir=data_dir)
 
     # ------Dataset------
 
