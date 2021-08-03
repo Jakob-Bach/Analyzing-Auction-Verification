@@ -38,6 +38,22 @@ def add_budget_features(dataset: pd.DataFrame) -> None:
         dataset.loc[is_winner_row, 'property.price'] - budgets_winner
 
 
+# Create small dataset with one row per product permutation, only containing the position of each
+# product in the verification order and the minimal revenue for that permutation
+def create_revenue_dataset(dataset: pd.DataFrame) -> pd.DataFrame:
+    dataset = dataset[['id.product_permutation', 'id.product_position', 'property.product',
+                       'allocation.revenue']].sort_values('property.product')
+    # Extract the positions of all products per permutation (as we sorted by product before, can
+    # directly extract the unique positions; unique() keeps order, groupy also keeps order):
+    result = dataset.groupby('id.product_permutation')['id.product_position'].unique().reset_index()
+    # Convert list of product positions to separate columns:
+    result[[f'order.p{i}.pos' for i in range(1, 7)]] = result['id.product_position'].apply(pd.Series)
+    result.drop(columns='id.product_position', inplace=True)
+    # Combine with revenues; as there might be multiple revenues per permutation, we take min:
+    result = result.merge(dataset.groupby('id.product_permutation')['allocation.revenue'].min().reset_index())
+    return result
+
+
 # Add various id features by modifying "dataset" in-place.
 def add_id_features(dataset: pd.DataFrame) -> None:
     # Identify product permutations (all start with same capacity after winner for last product of
