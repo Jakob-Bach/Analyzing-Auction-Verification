@@ -187,6 +187,22 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     plt.tight_layout()
     plt.savefig(plot_dir / 'importance-result.pdf')
 
+    # --Revenue--
+
+    print('\nWhat is the prediction performance (R^2) for revenue?')
+    print(results[results['target'] == 'allocation.revenue'].groupby(['split_method', 'n_trees'])[
+        ['train_score', 'test_score']].agg(['min', 'mean', 'median']).round(2))
+
+    # Figure 4
+    plot_data = results[(results['target'] == 'allocation.revenue') & (results['n_trees'] == 100)].melt(
+        value_vars=importance_cols, var_name='Feature', value_name='Importance').dropna()
+    plot_data['Feature'] = plot_data['Feature'].str.replace('imp_order\\.', '')
+    plt.figure(figsize=(4, 3))
+    sns.boxplot(x='Feature', y='Importance', data=plot_data, color='orange')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig(plot_dir / 'importance-revenue.pdf')
+
 
 # Parse some command line argument and run evaluation.
 if __name__ == '__main__':
