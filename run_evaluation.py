@@ -176,7 +176,7 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     print(results[results['target'] == 'verification.result'].groupby('split_method')[
         importance_cols].mean().round(2).transpose().dropna())
 
-    # Figure 3
+    # Figure 3a
     plot_data = results[(results['target'] == 'verification.result') & (results['n_trees'] == 100)].melt(
         value_vars=importance_cols, var_name='Feature', value_name='Importance').dropna()
     plot_data['Feature'] = plot_data['Feature'].str.replace('imp_(process\\.|property\\.)', '')
@@ -202,6 +202,27 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.savefig(plot_dir / 'importance-revenue.pdf')
+
+    # --Verification time--
+
+    print('\nWhat is the prediction performance (R^2) for verification time?')
+    print(results[results['target'] == 'verification.time'].groupby(['split_method', 'n_trees'])[
+        ['train_score', 'test_score']].agg(['min', 'mean', 'median']).round(2))
+
+    print('\nHow does verification time (in s) vary (standard deviation) per feature combination?')
+    print((dataset.fillna(0).groupby(prediction_features)['verification.time'].std() / 1000
+           ).describe().round(2))
+
+    # Figure 3b
+    plot_data = results[(results['target'] == 'verification.time') & (results['n_trees'] == 100)].melt(
+        value_vars=importance_cols, var_name='Feature', value_name='Importance').dropna()
+    plot_data['Feature'] = plot_data['Feature'].str.replace('imp_(process\\.|property\\.)', '')
+    plot_data = plot_data.groupby('Feature').mean().reset_index()  # variation too low for boxplot
+    plt.figure(figsize=(4, 3))
+    sns.barplot(x='Feature', y='Importance', data=plot_data, color='orange')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig(plot_dir / 'importance-time.pdf')
 
 
 # Parse some command line argument and run evaluation.
