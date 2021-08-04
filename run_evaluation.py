@@ -151,7 +151,7 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
 
     # --Verification result--
 
-    print('\nWhat is the prediction performance for verification result?')
+    print('\nWhat is the prediction performance (MCC) for verification result?')
     print(results[results['target'] == 'verification.result'].groupby(['split_method', 'n_trees'])[
         ['train_score', 'test_score']].agg(['min', 'mean', 'median']).round(2))
 
@@ -159,21 +159,30 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     print(results.loc[(results['target'] == 'verification.result') & (results['test_score'] < 0.9),
                       ['fold_id', 'split_method', 'n_trees']])
 
+    print('\nHow many unique feature (capacity + property) combinations are there?')
+    prediction_features = [f'process.b{i}.capacity' for i in range(1, 4)] +\
+        ['property.price', 'property.product', 'property.winner']
+    print(dataset.fillna(0).groupby(prediction_features).ngroups)  # fillna() for empty winner
+
+    print('\nHow many unique verification results are there per feature combination?')
+    print(dataset.fillna(0).groupby(prediction_features)['verification.result'].nunique().value_counts())
+
     importance_cols = [x for x in results.columns if x.startswith(('imp_'))]
-    print('\nHow does feature importance vary between and within the number of trees?')
+    print('\nHow does feature importance for verification result vary between and within the number of trees?')
     print(results[results['target'] == 'verification.result'].groupby('n_trees')[
         importance_cols].agg(['mean', 'std']).round(3).transpose().dropna())
 
-    print('\nHow does feature importance vary between the split methods?')
+    print('\nHow does feature importance for verification result vary between the split methods?')
     print(results[results['target'] == 'verification.result'].groupby('split_method')[
         importance_cols].mean().round(2).transpose().dropna())
 
     # Figure 3
-    plot_data = results[(results['target'] == 'verification.result')].melt(
+    plot_data = results[(results['target'] == 'verification.result') & (results['n_trees'] == 100)].melt(
         value_vars=importance_cols, var_name='Feature', value_name='Importance').dropna()
-    plot_data['Feature'] = plot_data['Feature'].str.replace('(imp_|process\\.|property\\.)', '')
+    plot_data['Feature'] = plot_data['Feature'].str.replace('imp_(process\\.|property\\.)', '')
+    plot_data = plot_data.groupby('Feature').mean().reset_index()  # variation too low for boxplot
     plt.figure(figsize=(4, 3))
-    sns.boxplot(x='Feature', y='Importance', data=plot_data, fliersize=0, color='orange')
+    sns.barplot(x='Feature', y='Importance', data=plot_data, color='orange')
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.savefig(plot_dir / 'importance-result.pdf')
