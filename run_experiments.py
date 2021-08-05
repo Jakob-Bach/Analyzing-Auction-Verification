@@ -33,11 +33,11 @@ def split_kfold(dataset: pd.DataFrame) -> Generator[Tuple[np.ndarray, np.ndarray
     return sklearn.model_selection.KFold(n_splits=10, shuffle=True, random_state=25).split(X=dataset)
 
 
-def split_permutation(dataset: pd.DataFrame) -> Generator[Tuple[np.ndarray, np.ndarray], None, None]:
-    return sklearn.model_selection.LeaveOneGroupOut().split(X=dataset, groups=dataset['id.product_permutation'])
+def split_product(dataset: pd.DataFrame) -> Generator[Tuple[np.ndarray, np.ndarray], None, None]:
+    return sklearn.model_selection.LeaveOneGroupOut().split(X=dataset, groups=dataset['property.product'])
 
 
-SPLIT_FUNCTIONS = [split_permutation, split_capacity, split_kfold]  # to evaluate generalization
+SPLIT_FUNCTIONS = [split_capacity, split_kfold, split_product]  # to evaluate generalization
 
 
 # Define the tasks for the experimental pipeline, which are combinations of:
@@ -46,16 +46,16 @@ SPLIT_FUNCTIONS = [split_permutation, split_capacity, split_kfold]  # to evaluat
 # - model complexities (number of trees)
 def define_experimental_design(dataset: pd.DataFrame) -> List[Dict[str, Any]]:
     results = []
+    basic_dataset = prepare_dataset.create_deduplicated_dataset(dataset=dataset)
+    basic_features = [x for x in basic_dataset.columns if x not in ['verification.result', 'verification.time']]
     revenue_dataset = prepare_dataset.create_revenue_dataset(dataset=dataset)
-    basic_features = [f'process.b{i}.capacity' for i in range(1, 5)] +\
-        ['property.product', 'property.price', 'property.winner']  # known pre-verification
-    revenue_features = [f'order.p{i}.pos' for i in range(1, 7)]
+    revenue_features = [x for x in revenue_dataset.columns if x != 'allocation.revenue']
     for n_trees in NUM_TREES:
         for split_func in SPLIT_FUNCTIONS:
             results.append({'target': 'verification.result', 'features': basic_features,
-                            'dataset': dataset, 'split_func': split_func, 'n_trees': n_trees})
+                            'dataset': basic_dataset, 'split_func': split_func, 'n_trees': n_trees})
             results.append({'target': 'verification.time', 'features': basic_features,
-                            'dataset': dataset, 'split_func': split_func, 'n_trees': n_trees})
+                            'dataset': basic_dataset, 'split_func': split_func, 'n_trees': n_trees})
         # For revenue, just one split method makes sense:
         results.append({'target': 'allocation.revenue', 'features': revenue_features,
                         'dataset': revenue_dataset, 'split_func': split_kfold, 'n_trees': n_trees})
@@ -74,9 +74,9 @@ def train_and_evaluate(dataset: pd.DataFrame, target: str, features: List[str],
     prediction_results = []
     feature_importances = []
     for fold_id, (train_idx, test_idx) in enumerate(split_func(dataset=dataset)):
-        X_train = dataset.loc[train_idx, features].fillna(0)  # "property.winner" might be NA
+        X_train = dataset.loc[train_idx, features]
         y_train = dataset.loc[train_idx, target].astype(int)  # "verification.result" is bool
-        X_test = dataset.loc[test_idx, features].fillna(0)
+        X_test = dataset.loc[test_idx, features]
         y_test = dataset.loc[test_idx, target].astype(int)
         if dataset[target].nunique() == 2:
             model = sklearn.ensemble.RandomForestClassifier(n_estimators=n_trees, random_state=25)

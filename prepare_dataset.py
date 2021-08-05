@@ -51,6 +51,21 @@ def create_revenue_dataset(dataset: pd.DataFrame) -> pd.DataFrame:
     result.drop(columns='id.product_position', inplace=True)
     # Combine with revenues; as there might be multiple revenues per permutation, we take min:
     result = result.merge(dataset.groupby('id.product_permutation')['allocation.revenue'].min().reset_index())
+    result.drop(columns='id.product_permutation', inplace=True)
+    return result
+
+
+# Reduce dataset by only keeping one data object per process model (capacity setting) and property.
+def create_deduplicated_dataset(dataset: pd.DataFrame) -> pd.DataFrame:
+    features = [f'process.b{i}.capacity' for i in range(1, 5)] +\
+        ['property.price', 'property.product', 'property.winner']
+    targets = ['verification.result', 'verification.time']
+    # Fill emtpty "property.winner" (occurs if only price is verified):
+    result = dataset[features + targets].fillna(0)
+    # Make sure verification result uniquely follows from these features:
+    assert (result.groupby(features)['verification.result'].nunique() == 1).all()
+    # De-duplicate (mean only affects verification result):
+    result = result.groupby(features)[targets].mean().reset_index()
     return result
 
 
