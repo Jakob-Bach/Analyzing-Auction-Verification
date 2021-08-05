@@ -1,8 +1,8 @@
-# Efficient Verification of Process Models using Machine Learning -- A Case Study of Spectrum Auctions
+# Analyzing and Predicting Verification of Process Models -- A Case Study on Spectrum Auctions
 
 This repository contains the code and text of the paper
 
-> Ordoni, Elaheh, and Jakob Bach. "Efficient Verification of Process Models using Machine Learning -- A Case Study of Spectrum Auctions"
+> Ordoni, Elaheh, Jakob Bach, and Ann-Katrin Hanke. "Analyzing and Predicting Verification of Process Models -- A Case Study on Spectrum Auctions"
 
 This document describes the steps to reproduce the experiments.
 
