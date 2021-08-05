@@ -160,7 +160,7 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
                       ['fold_id', 'split_method', 'n_trees']])
 
     print('\nHow many unique feature (capacity + property) combinations are there?')
-    prediction_features = [f'process.b{i}.capacity' for i in range(1, 4)] +\
+    prediction_features = [f'process.b{i}.capacity' for i in range(1, 5)] +\
         ['property.price', 'property.product', 'property.winner']
     print(dataset.fillna(0).groupby(prediction_features).ngroups)  # fillna() for empty winner
 
