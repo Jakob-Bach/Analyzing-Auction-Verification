@@ -1,8 +1,8 @@
-# Analyzing and Predicting Verification of Process Models -- A Case Study on Spectrum Auctions
+# Analysing and Predicting Verification of Process Models -- A Case Study on Spectrum Auctions
 
 This repository contains the code and text of the paper
 
-> Ordoni, Elaheh, Jakob Bach, and Ann-Katrin Hanke. "Analyzing and Predicting Verification of Process Models -- A Case Study on Spectrum Auctions"
+> Ordoni, Elaheh, Jakob Bach, and Ann-Katrin Hanke. "Analysing and Predicting Verification of Process Models -- A Case Study on Spectrum Auctions"
 
 This document describes the steps to reproduce the experiments.
 

@@ -206,6 +206,9 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     print(results[results['target'] == 'verification.result'].groupby(['split_method', 'n_trees'])[
         ['train_score', 'test_score']].agg(['min', 'mean', 'median']).round(2))
 
+    print(f'Total verification time for the prediction dataset with {basic_dataset.shape[0]} rows ' +
+          f'was {(basic_dataset["verification.time"].sum() / 1000 / 3600).round(2)} hours.')
+
     # Figure 3a
     plot_data = results[results['target'] == 'verification.result'].copy()
     plot_data['split_method'] = plot_data['split_method'].replace(
