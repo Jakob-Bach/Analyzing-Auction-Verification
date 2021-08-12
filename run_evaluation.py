@@ -312,6 +312,16 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     plt.tight_layout()
     plt.savefig(plot_dir / 'importance-time.pdf')
 
+    # ------Discussion------
+
+    print('\nWhat is the relative performance per target and split method for forests with 100 trees?')
+    agg_data = results[results['n_trees'] == 100].groupby(
+        ['target', 'split_method'])['test_score'].mean().reset_index()
+    agg_data = agg_data.merge(agg_data[agg_data['split_method'] == 'kfold'].drop(
+        columns='split_method').rename(columns={'test_score': 'kfold'}))
+    agg_data['ratio'] = agg_data['test_score'] / agg_data['kfold']
+    print(agg_data.round(2))
+
 
 # Parse some command line argument and run evaluation.
 if __name__ == '__main__':
