@@ -34,11 +34,21 @@ def split_kfold(dataset: pd.DataFrame) -> Generator[Tuple[np.ndarray, np.ndarray
     return sklearn.model_selection.KFold(n_splits=10, shuffle=True, random_state=25).split(X=dataset)
 
 
+def split_position(dataset: pd.DataFrame) -> Generator[Tuple[np.ndarray, np.ndarray], None, None]:
+    return sklearn.model_selection.LeaveOneGroupOut().split(X=dataset, groups=dataset['order.p1.pos'])
+
+
 def split_product(dataset: pd.DataFrame) -> Generator[Tuple[np.ndarray, np.ndarray], None, None]:
     return sklearn.model_selection.LeaveOneGroupOut().split(X=dataset, groups=dataset['property.product'])
 
 
-SPLIT_FUNCTIONS = [split_capacity, split_kfold, split_product]  # to evaluate generalization
+def split_reverse_kfold(dataset: pd.DataFrame) -> Generator[Tuple[np.ndarray, np.ndarray], None, None]:
+    for train_idx, test_idx in split_kfold(dataset=dataset):
+        yield test_idx, train_idx  # use smaller part for training, larger for testing
+
+
+SPLIT_FUNCTIONS = [split_kfold, split_reverse_kfold, split_capacity, split_product]  # to evaluate generalization
+SPLIT_FUNCTIONS_REVENUE = [split_kfold, split_reverse_kfold, split_position]  # different features, so different splits
 
 
 # Define the tasks for the experimental pipeline, which are combinations of:
@@ -57,9 +67,9 @@ def define_experimental_design(dataset: pd.DataFrame) -> List[Dict[str, Any]]:
                             'dataset': basic_dataset, 'split_func': split_func, 'n_trees': n_trees})
             results.append({'target': 'verification.time', 'features': basic_features,
                             'dataset': basic_dataset, 'split_func': split_func, 'n_trees': n_trees})
-        # For revenue, just one split method makes sense:
-        results.append({'target': 'allocation.revenue', 'features': revenue_features,
-                        'dataset': revenue_dataset, 'split_func': split_kfold, 'n_trees': n_trees})
+        for split_func in SPLIT_FUNCTIONS_REVENUE:
+            results.append({'target': 'allocation.revenue', 'features': revenue_features,
+                            'dataset': revenue_dataset, 'split_func': split_func, 'n_trees': n_trees})
     for i, result in enumerate(results):
         result['task_id'] = i
     return results
