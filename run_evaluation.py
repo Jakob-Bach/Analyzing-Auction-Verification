@@ -208,6 +208,7 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
 
     print(f'Total verification time for the prediction dataset with {basic_dataset.shape[0]} rows ' +
           f'was {(basic_dataset["verification.time"].sum() / 1000 / 3600).round(2)} hours.')
+    print(f'The maximum training time was {results["training_time"].max()} s.')
 
     # Figure 3a
     plot_data = results[results['target'] == 'verification.result'].copy()

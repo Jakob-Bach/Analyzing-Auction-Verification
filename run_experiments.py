@@ -10,6 +10,7 @@ Usage: python -m run_experiments --help
 import argparse
 import multiprocessing
 import pathlib
+import time
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
 
 import numpy as np
@@ -84,10 +85,13 @@ def train_and_evaluate(dataset: pd.DataFrame, target: str, features: List[str],
         else:
             model = sklearn.ensemble.RandomForestRegressor(n_estimators=n_trees, random_state=25)
             scoring_func = sklearn.metrics.r2_score
+        start_time = time.process_time()
         model.fit(X_train, y_train)
+        end_time = time.process_time()
         train_score = scoring_func(y_true=y_train, y_pred=model.predict(X_train))
         test_score = scoring_func(y_true=y_test, y_pred=model.predict(X_test))
-        result = {'fold_id': fold_id, 'train_score': train_score, 'test_score': test_score}
+        result = {'fold_id': fold_id, 'train_score': train_score, 'test_score': test_score,
+                  'training_time': end_time - start_time}
         prediction_results.append(result)
         feature_importances.append(model.feature_importances_)
     prediction_results = pd.DataFrame(prediction_results)
