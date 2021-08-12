@@ -213,13 +213,14 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     # Figure 3a
     plot_data = results[results['target'] == 'verification.result'].copy()
     plot_data['split_method'] = plot_data['split_method'].replace(
-        {'capacity': 'Capacity', 'kfold': '10-fold', 'product': 'Product'})
+        {'capacity': 'Capacity', 'kfold': '10-fold', 'product': 'Product', 'reverse_kfold': 'Reverse 10-fold'})
     plt.figure(figsize=(4, 3))
     sns.boxplot(x='n_trees', y='test_score', hue='split_method', data=plot_data, palette='Set2')
     plt.xlabel('Number of trees')
     plt.ylabel('Test-set MCC')
-    plt.legend(title='Split', edgecolor='white', loc='lower left', bbox_to_anchor=(-0.15, 1),
-               framealpha=0, ncol=3)
+    leg = plt.legend(title='Split', edgecolor='white', loc='upper left', bbox_to_anchor=(0, -0.1),
+                     framealpha=0, ncol=2)
+    leg.get_title().set_position((-120, -22))
     plt.ylim((-0.1, 1.1))
     plt.tight_layout()
     plt.savefig(plot_dir / 'performance-result.pdf')
@@ -240,7 +241,7 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     plot_data['Feature'] = plot_data['Feature'].str.replace('imp_(process\\.|property\\.)', '')
     plot_data = plot_data.groupby('Feature').mean().reset_index()  # variation too low for boxplot
     plt.figure(figsize=(4, 3))
-    sns.barplot(x='Feature', y='Importance', data=plot_data, color=plt.get_cmap('Set2')(3))
+    sns.barplot(x='Feature', y='Importance', data=plot_data, color=plt.get_cmap('Set2')(0))
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.savefig(plot_dir / 'importance-result.pdf')
@@ -253,11 +254,16 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
 
     # Figure 4a
     plot_data = results[results['target'] == 'allocation.revenue'].copy()
+    plot_data['split_method'] = plot_data['split_method'].replace(
+        {'kfold': '10-fold', 'position': 'Position', 'reverse_kfold': 'Reverse 10-fold'})
     plt.figure(figsize=(4, 3))
-    sns.boxplot(x='n_trees', y='test_score', data=plot_data, color=plt.get_cmap('Set2')(0))
+    sns.boxplot(x='n_trees', y='test_score', hue='split_method', data=plot_data, palette='Set2')
     plt.xlabel('Number of trees')
     plt.ylabel('Test-set $R^2$')
-    plt.ylim((0.8, 1.01))
+    leg = plt.legend(title='Split', edgecolor='white', loc='upper left', bbox_to_anchor=(0, -0.1),
+                     framealpha=0, ncol=2)
+    leg.get_title().set_position((-120, -22))
+    plt.ylim((-0.1, 1.1))
     plt.tight_layout()
     plt.savefig(plot_dir / 'performance-revenue.pdf')
 
@@ -266,8 +272,9 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
                         (results['split_method'] == 'kfold')].melt(
         value_vars=importance_cols, var_name='Feature', value_name='Importance').dropna()
     plot_data['Feature'] = plot_data['Feature'].str.replace('imp_order\\.', '')
+    plot_data = plot_data.groupby('Feature').mean().reset_index()
     plt.figure(figsize=(4, 3))
-    sns.boxplot(x='Feature', y='Importance', data=plot_data, color=plt.get_cmap('Set2')(3))
+    sns.barplot(x='Feature', y='Importance', data=plot_data, color=plt.get_cmap('Set2')(0))
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.savefig(plot_dir / 'importance-revenue.pdf')
@@ -281,14 +288,15 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     # Figure 5a
     plot_data = results[results['target'] == 'verification.time'].copy()
     plot_data['split_method'] = plot_data['split_method'].replace(
-        {'capacity': 'Capacity', 'kfold': '10-fold', 'product': 'Product'})
+        {'capacity': 'Capacity', 'kfold': '10-fold', 'product': 'Product', 'reverse_kfold': 'Reverse 10-fold'})
     plt.figure(figsize=(4, 3))
     sns.boxplot(x='n_trees', y='test_score', hue='split_method', data=plot_data, palette='Set2')
     plt.xlabel('Number of trees')
     plt.ylabel('Test-set $R^2$')
-    plt.legend(title='Split', edgecolor='white', loc='lower left', bbox_to_anchor=(-0.2, 1),
-               framealpha=0, ncol=3)
-    plt.ylim((0.94, 1.01))
+    leg = plt.legend(title='Split', edgecolor='white', loc='upper left', bbox_to_anchor=(0, -0.1),
+                     framealpha=0, ncol=2)
+    leg.get_title().set_position((-120, -22))
+    plt.ylim((0.8, 1.02))
     plt.tight_layout()
     plt.savefig(plot_dir / 'performance-time.pdf')
 
@@ -299,7 +307,7 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     plot_data['Feature'] = plot_data['Feature'].str.replace('imp_(process\\.|property\\.)', '')
     plot_data = plot_data.groupby('Feature').mean().reset_index()  # variation too low for boxplot
     plt.figure(figsize=(4, 3))
-    sns.barplot(x='Feature', y='Importance', data=plot_data, color=plt.get_cmap('Set2')(3))
+    sns.barplot(x='Feature', y='Importance', data=plot_data, color=plt.get_cmap('Set2')(0))
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.savefig(plot_dir / 'importance-time.pdf')
