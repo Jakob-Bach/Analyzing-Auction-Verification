@@ -31,6 +31,8 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     revenue_dataset = prepare_dataset.create_revenue_dataset(dataset=dataset)
     results = pd.read_csv(results_dir / 'prediction_results.csv')
 
+    plt.rcParams.update({'font.family': 'Helvetica', 'font.size': 11})
+
     # ------Experimental Design------
 
     # ----Dataset----
