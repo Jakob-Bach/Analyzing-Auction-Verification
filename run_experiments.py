@@ -1,8 +1,8 @@
 """Run experiments
 
-Main experimental pipeline. Trains prediction models for different targets with different feature
-sets, using models of different complexity and different cross-validation splits. Saves the
-results as a CSV.
+Main experimental pipeline. Requires the large auction-verification dataset as input.
+Trains prediction models for different targets, using models of different complexity and
+different cross-validation splits. Saves the results as a CSV.
 
 Usage: python -m run_experiments --help
 """
@@ -52,9 +52,9 @@ SPLIT_FUNCTIONS_REVENUE = [split_kfold, split_reverse_kfold, split_position]  # 
 
 
 # Define the tasks for the experimental pipeline, which are combinations of:
-# - datasets (target + features)
-# - split methods
-# - model complexities (number of trees)
+# - prediction scenarios aka datasets (target + features)
+# - splitting methods (depending on the dataset)
+# - model complexities (here: number of trees in random forest)
 def define_experimental_design(dataset: pd.DataFrame) -> List[Dict[str, Any]]:
     results = []
     basic_dataset = prepare_dataset.create_deduplicated_dataset(dataset=dataset)
@@ -75,9 +75,9 @@ def define_experimental_design(dataset: pd.DataFrame) -> List[Dict[str, Any]]:
     return results
 
 
-# Evaluate predictions for one "dataset", i.e., use its "features" and "target" column(s) to train
-# a random forest (classification or regression) with "n_trees". Use the "split_func" to generate
-# cross-validation splits. "task_id" is just copied to the output.
+# Evaluate predictions for one "dataset" (prediction scenario), i.e., use its "features" and
+# "target" column(s) to train a random forest (classification or regression) with "n_trees".
+# Use the "split_func" to generate cross-validation splits. "task_id" is just copied to the output.
 # Return a data frame with prediction performance, feature importance, and columns identifying the
 # experimental setting.
 def train_and_evaluate(dataset: pd.DataFrame, target: str, features: List[str],
@@ -86,20 +86,20 @@ def train_and_evaluate(dataset: pd.DataFrame, target: str, features: List[str],
     feature_importances = []
     for fold_id, (train_idx, test_idx) in enumerate(split_func(dataset=dataset)):
         X_train = dataset.loc[train_idx, features]
-        y_train = dataset.loc[train_idx, target].astype(int)  # "verification.result" is bool
+        y_train = dataset.loc[train_idx, target].astype(int)  # since "verification.result" is bool
         X_test = dataset.loc[test_idx, features]
         y_test = dataset.loc[test_idx, target].astype(int)
-        if dataset[target].nunique() == 2:
+        if dataset[target].nunique() == 2:  # verification.result
             model = sklearn.ensemble.RandomForestClassifier(n_estimators=n_trees, random_state=25)
             scoring_func = sklearn.metrics.matthews_corrcoef
-        else:
+        else:  # verification.time, allocation.revenue
             model = sklearn.ensemble.RandomForestRegressor(n_estimators=n_trees, random_state=25)
             scoring_func = sklearn.metrics.r2_score
         start_time = time.process_time()
-        model.fit(X_train, y_train)
+        model.fit(X=X_train, y=y_train)
         end_time = time.process_time()
-        train_score = scoring_func(y_true=y_train, y_pred=model.predict(X_train))
-        test_score = scoring_func(y_true=y_test, y_pred=model.predict(X_test))
+        train_score = scoring_func(y_true=y_train, y_pred=model.predict(X=X_train))
+        test_score = scoring_func(y_true=y_test, y_pred=model.predict(X=X_test))
         result = {'fold_id': fold_id, 'train_score': train_score, 'test_score': test_score,
                   'training_time': end_time - start_time}
         prediction_results.append(result)
@@ -114,7 +114,8 @@ def train_and_evaluate(dataset: pd.DataFrame, target: str, features: List[str],
     return prediction_results
 
 
-# Run all experiments and save results.
+# Run all experiments and save results. "data_dir" needs to contain the input dataset,
+# "results_dir" will store the output dataset. "n_processes" concerns parallelization (default: all cores).
 def run_experiments(data_dir: pathlib.Path, results_dir: pathlib.Path,
                     n_processes: Optional[int] = None) -> None:
     if not data_dir.is_dir():

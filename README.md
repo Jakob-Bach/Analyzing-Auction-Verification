@@ -1,9 +1,10 @@
-# Analysing and Predicting Verification of Process Models -- A Case Study on Spectrum Auctions
+# Analysing and Predicting Verification of Process Models -- a Case Study with Spectrum Auctions
 
-This repository contains the code and text of the paper
+This repository contains the code of the paper
 
-> Ordoni, Elaheh, Jakob Bach, and Ann-Katrin Hanke. "Analysing and Predicting Verification of Process Models -- A Case Study on Spectrum Auctions"
+> Ordoni, Elaheh, Jakob Bach, and Ann-Katrin Hanke. "Analysing and Predicting Verification of Process Models -- a Case Study with Spectrum Auctions"
 
+(The paper is not published yet.)
 This document describes the steps to reproduce the experiments.
 
 ## Setup
@@ -52,7 +53,7 @@ Activate the environment in Windows (note the back-slashes) with
 ### Dependency Management
 
 After activating the environment, you can use `python` and `pip` as usual.
-To install all necessary dependencies for this repo, switch to the directory `code` and simply run
+To install all necessary dependencies for this repo, simply run
 
 ```bash
 python -m pip install -r requirements.txt
@@ -77,20 +78,21 @@ To use the environment in the IDE `Spyder`, you need to install `spyder-kernels`
 ## Reproducing the Experiments
 
 After setting up and activating an environment, you are ready to run the code.
-If you don't have access to the pre-processed dataset `auction_verification_large.csv`, acquire the raw CSV files and run
+If you don't have access to the pre-processed dataset `auction_verification_large.csv`,
+acquire the six original CSV files `result[0-5].csv` from the iterative verification procedure and run
 
 ```bash
 python -m prepare_dataset
 ```
 
 to pre-process the dataset.
-Having obtained `auction_verification_large.csv`, start the pipeline with
+Having obtained `auction_verification_large.csv`, start the prediction pipeline with
 
 ```bash
 python -m run_experiments
 ```
 
-To create the plots for the paper, run
+To print statistics and create the plots for the paper, run
 
 ```bash
 python -m run_evaluation
@@ -101,3 +103,6 @@ All scripts have a few command line options, which you can see by running the sc
 ```bash
 python -m run_experiments --help
 ```
+
+If you are fine with all input and output data to be stored in a directory called `data/`
+(at your current location, e.g., in this repo), you can stick to the default arguments of the scripts.

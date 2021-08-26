@@ -8,12 +8,61 @@ Usage: python -m run_evaluation --help
 
 import argparse
 import pathlib
+from typing import Tuple
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
 import prepare_dataset
+
+
+# Create a box plot of verification time against bidders and their capacities.
+def plot_time_distribution(dataset: pd.DataFrame) -> None:
+    plot_data = dataset[[f'process.b{i}.capacity' for i in range(1, 5)] + ['verification.time']].melt(
+        id_vars='verification.time', value_vars=[f'process.b{i}.capacity' for i in range(1, 5)],
+        value_name='Capacity', var_name='Bidder')
+    plot_data['Bidder'] = plot_data['Bidder'].str.extract('process.b([0-9]).capacity').astype(int)
+    plot_data['verification.time'] = plot_data['verification.time'] / 1000
+    plt.figure(figsize=(4, 3))
+    sns.boxplot(x='Bidder', y='verification.time', hue='Capacity', data=plot_data, fliersize=0,
+                palette='OrRd')
+    plt.ylabel('Verification time (seconds)')
+    plt.legend(title='Capacity', edgecolor='white', loc='lower left', bbox_to_anchor=(0, 1),
+               framealpha=0, ncol=4)
+    plt.tight_layout()
+
+
+# Create a box plot of prediction performance against number of trees and splitting method.
+def plot_prediction_performance(results: pd.DataFrame, target: str, ylabel: str,
+                                ylim: Tuple[float, float]) -> None:
+    plot_data = results[results['target'] == target].copy()
+    plot_data['split_method'] = plot_data['split_method'].replace(
+        {'capacity': 'Capacity', 'kfold': '10-fold', 'position': 'Position', 'product': 'Product',
+         'reverse_kfold': 'Reverse 10-fold'})
+    plt.figure(figsize=(4, 3))
+    sns.boxplot(x='n_trees', y='test_score', hue='split_method', data=plot_data, palette='Set2')
+    plt.xlabel('Number of trees')
+    plt.ylabel(ylabel)
+    leg = plt.legend(title='Split', edgecolor='white', loc='upper left', bbox_to_anchor=(0, -0.1),
+                     framealpha=0, ncol=2)
+    leg.get_title().set_position((-120, -22))
+    plt.ylim(ylim)
+    plt.tight_layout()
+
+
+# Create a bar plot of feature importance.
+def plot_feature_importance(results: pd.DataFrame, target: str) -> None:
+    importance_cols = [x for x in results.columns if x.startswith(('imp_'))]
+    plot_data = results[(results['target'] == target) & (results['n_trees'] == 100) &
+                        (results['split_method'] == 'kfold')].melt(
+        value_vars=importance_cols, var_name='Feature', value_name='Importance').dropna()
+    plot_data['Feature'] = plot_data['Feature'].str.replace('imp_(process\\.|property\\.|order\\.)', '')
+    plot_data = plot_data.groupby('Feature').mean().reset_index()
+    plt.figure(figsize=(4, 3))
+    sns.barplot(x='Feature', y='Importance', data=plot_data, color=plt.get_cmap('Set2')(0))
+    plt.xticks(rotation=45)
+    plt.tight_layout()
 
 
 # Run the full evaluation pipeline. To that end, read experiments' input files from "data_dir",
@@ -41,6 +90,8 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     print('Number of features:', dataset.shape[1])
 
     # ----Approach----
+
+    # --Prediction scenarios--
 
     print('\nHow many unique feature (capacity + property) combinations are there?')
     prediction_features = [f'process.b{i}.capacity' for i in range(1, 5)] +\
@@ -77,11 +128,15 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
         f'p{i}') for i in range(1, 7)], axis='columns').fillna(0))
 
     print('\nHow often does each bidder acquire a certain number of products?')
+    # Count occurence of each winner allocation (combination of winner assignments over products):
     allocations = dataset[[f'allocation.p{i}.winner' for i in range(1, 7)]].value_counts().rename(
-        'win_count').reset_index()
-    allocations[[f'b{i}' for i in range(1, 5)]] = allocations.drop(columns='win_count').aggregate(
-        pd.Series.value_counts, axis='columns').fillna(0).astype(int)  # num wins per bidder
-    print(pd.concat([allocations.groupby(f'b{i}')['win_count'].sum().rename_axis('products_won').rename(
+        'occurrences').reset_index()
+    # For each allocation, count for each bidder how many products they win (ignore how often
+    # allocation itself occurs):
+    allocations[[f'b{i}' for i in range(1, 5)]] = allocations.drop(columns='occurrences').aggregate(
+        pd.Series.value_counts, axis='columns').fillna(0).astype(int)
+    # For each bidder, count how often each number of products won occurs:
+    print(pd.concat([allocations.groupby(f'b{i}')['occurrences'].sum().rename_axis('products_won').rename(
         f'b{i}') for i in range(1, 5)], axis='columns').fillna(0).astype(int))
 
     # --Revenue--
@@ -100,14 +155,6 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     print('\nHow many distinct revenues are there per winner allocation?')
     print(dataset.groupby([f'allocation.p{i}.winner' for i in range(1, 7)])['allocation.revenue'].nunique(
         ).value_counts().sort_index())
-
-    print('\nHow many distinct revenues are there per product-bidder allocation?')
-    print(pd.concat([dataset.groupby(f'allocation.p{i}.winner')['allocation.revenue'].nunique().rename_axis(
-        'bidder').rename(f'p{i}') for i in range(1, 7)], axis='columns').fillna(0).astype(int))
-
-    print('\nHow many distinct revenues are there per product-price allocation?')
-    print(pd.concat([dataset.groupby(f'allocation.p{i}.price')['allocation.revenue'].nunique().rename_axis(
-        'price').rename(f'p{i}') for i in range(1, 7)], axis='columns').fillna(0).astype(int))
 
     corr_matrix_pearson = dataset.corr(method='pearson')
     print('\nPearson correlation of prices to revenue:')
@@ -129,7 +176,7 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     print(dataset.groupby('property.product')['verification.result'].mean().round(2))
 
     print('\nHow often are prices verified positively?')
-    print(dataset.groupby('property.price')['verification.result'].mean())
+    print(dataset.groupby('property.price')['verification.result'].mean().round(2))
 
     # --Verification time--
 
@@ -139,41 +186,18 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     print('\nHow is verification time (in s) distributed in the prediction dataset?')
     print((basic_dataset['verification.time'] / 1000).describe().round(2))
 
-    print('\nHow does verification time vary between product positions?')
+    print('\nHow does verification time (in ms) vary between product positions?')
     print(dataset.groupby('id.product_position')['verification.time'].describe().round().transpose())
 
-    print('\nWhat is the average verification time per capacity of an individual bidder?')
+    print('\nWhat is the average verification time (in ms) per capacity of an individual bidder?')
     print(pd.concat([dataset.groupby(f'process.b{i}.capacity')['verification.time'].mean().rename_axis(
         'capacity').rename(f'b{i}') for i in range(1, 5)], axis='columns').fillna(0).round())
 
-    # Figure 2a
-    plot_data = dataset[[f'process.b{i}.capacity' for i in range(1, 5)] + ['verification.time']].melt(
-        id_vars='verification.time', value_vars=[f'process.b{i}.capacity' for i in range(1, 5)],
-        value_name='Capacity', var_name='Bidder')
-    plot_data['Bidder'] = plot_data['Bidder'].str.extract('process.b([0-9]).capacity').astype(int)
-    plot_data['verification.time'] = plot_data['verification.time'] / 1000
-    plt.figure(figsize=(4, 3))
-    sns.boxplot(x='Bidder', y='verification.time', hue='Capacity', data=plot_data, fliersize=0,
-                palette='OrRd')
-    plt.ylabel('Verification time (seconds)')
-    plt.legend(title='Capacity', edgecolor='white', loc='lower left', bbox_to_anchor=(0, 1),
-               framealpha=0, ncol=4)
-    plt.tight_layout()
+    # Figure 3a
+    plot_time_distribution(dataset=dataset)
     plt.savefig(plot_dir / 'time-vs-capacity-full.pdf')
-
-    # Figure 2b
-    plot_data = basic_dataset[[f'process.b{i}.capacity' for i in range(1, 5)] + ['verification.time']].melt(
-        id_vars='verification.time', value_vars=[f'process.b{i}.capacity' for i in range(1, 5)],
-        value_name='Capacity', var_name='Bidder')
-    plot_data['Bidder'] = plot_data['Bidder'].str.extract('process.b([0-9]).capacity').astype(int)
-    plot_data['verification.time'] = plot_data['verification.time'] / 1000
-    plt.figure(figsize=(4, 3))
-    sns.boxplot(x='Bidder', y='verification.time', hue='Capacity', data=plot_data, fliersize=0,
-                palette='OrRd')
-    plt.ylabel('Verification time (seconds)')
-    plt.legend(title='Capacity', edgecolor='white', loc='lower left', bbox_to_anchor=(0, 1),
-               framealpha=0, ncol=4)
-    plt.tight_layout()
+    # Figure 3b
+    plot_time_distribution(dataset=basic_dataset)
     plt.savefig(plot_dir / 'time-vs-capacity-prediction.pdf')
 
     print('\nHow does mean verification time vary between products?')
@@ -208,24 +232,17 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     print(results[results['target'] == 'verification.result'].groupby(['split_method', 'n_trees'])[
         ['train_score', 'test_score']].agg(['min', 'mean', 'median']).round(2))
 
-    print(f'Total verification time for the prediction dataset with {basic_dataset.shape[0]} rows ' +
-          f'was {(basic_dataset["verification.time"].sum() / 1000 / 3600).round(2)} hours.')
-    print(f'The maximum training time was {results["training_time"].max()} s.')
+    print('Total verification time for the prediction dataset with', basic_dataset.shape[0],
+          'rows was', (basic_dataset['verification.time'].sum() / 1000 / 3600).round(2), 'hours.')
+    print('The maximum training time was', results['training_time'].max(), 'seconds.')
 
-    # Figure 3a
-    plot_data = results[results['target'] == 'verification.result'].copy()
-    plot_data['split_method'] = plot_data['split_method'].replace(
-        {'capacity': 'Capacity', 'kfold': '10-fold', 'product': 'Product', 'reverse_kfold': 'Reverse 10-fold'})
-    plt.figure(figsize=(4, 3))
-    sns.boxplot(x='n_trees', y='test_score', hue='split_method', data=plot_data, palette='Set2')
-    plt.xlabel('Number of trees')
-    plt.ylabel('Test-set MCC')
-    leg = plt.legend(title='Split', edgecolor='white', loc='upper left', bbox_to_anchor=(0, -0.1),
-                     framealpha=0, ncol=2)
-    leg.get_title().set_position((-120, -22))
-    plt.ylim((-0.1, 1.1))
-    plt.tight_layout()
+    # Figure 4a
+    plot_prediction_performance(results=results, target='verification.result',
+                                ylabel='Test-set MCC', ylim=(-0.1, 1.1))
     plt.savefig(plot_dir / 'performance-result.pdf')
+    # Figure 4b
+    plot_feature_importance(results=results, target='verification.result')
+    plt.savefig(plot_dir / 'importance-result.pdf')
 
     importance_cols = [x for x in results.columns if x.startswith(('imp_'))]
     print('\nHow does feature importance for verification result vary between and within the number of trees?')
@@ -236,49 +253,18 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     print(results[results['target'] == 'verification.result'].groupby('split_method')[
         importance_cols].mean().round(2).transpose().dropna())
 
-    # Figure 3b
-    plot_data = results[(results['target'] == 'verification.result') & (results['n_trees'] == 100) &
-                        (results['split_method'] == 'kfold')].melt(
-        value_vars=importance_cols, var_name='Feature', value_name='Importance').dropna()
-    plot_data['Feature'] = plot_data['Feature'].str.replace('imp_(process\\.|property\\.)', '')
-    plot_data = plot_data.groupby('Feature').mean().reset_index()  # variation too low for boxplot
-    plt.figure(figsize=(4, 3))
-    sns.barplot(x='Feature', y='Importance', data=plot_data, color=plt.get_cmap('Set2')(0))
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig(plot_dir / 'importance-result.pdf')
-
     # --Revenue--
 
     print('\nWhat is the prediction performance (R^2) for revenue?')
     print(results[results['target'] == 'allocation.revenue'].groupby(['split_method', 'n_trees'])[
         ['train_score', 'test_score']].agg(['min', 'mean', 'median']).round(2))
 
-    # Figure 4a
-    plot_data = results[results['target'] == 'allocation.revenue'].copy()
-    plot_data['split_method'] = plot_data['split_method'].replace(
-        {'kfold': '10-fold', 'position': 'Position', 'reverse_kfold': 'Reverse 10-fold'})
-    plt.figure(figsize=(4, 3))
-    sns.boxplot(x='n_trees', y='test_score', hue='split_method', data=plot_data, palette='Set2')
-    plt.xlabel('Number of trees')
-    plt.ylabel('Test-set $R^2$')
-    leg = plt.legend(title='Split', edgecolor='white', loc='upper left', bbox_to_anchor=(0, -0.1),
-                     framealpha=0, ncol=2)
-    leg.get_title().set_position((-120, -22))
-    plt.ylim((-0.1, 1.1))
-    plt.tight_layout()
+    # Figure 5a
+    plot_prediction_performance(results=results, target='allocation.revenue',
+                                ylabel='Test-set $R^2$', ylim=(-0.5, 1.1))
     plt.savefig(plot_dir / 'performance-revenue.pdf')
-
-    # Figure 4b
-    plot_data = results[(results['target'] == 'allocation.revenue') & (results['n_trees'] == 100) &
-                        (results['split_method'] == 'kfold')].melt(
-        value_vars=importance_cols, var_name='Feature', value_name='Importance').dropna()
-    plot_data['Feature'] = plot_data['Feature'].str.replace('imp_order\\.', '')
-    plot_data = plot_data.groupby('Feature').mean().reset_index()
-    plt.figure(figsize=(4, 3))
-    sns.barplot(x='Feature', y='Importance', data=plot_data, color=plt.get_cmap('Set2')(0))
-    plt.xticks(rotation=45)
-    plt.tight_layout()
+    # Figure 5b
+    plot_feature_importance(results=results, target='allocation.revenue')
     plt.savefig(plot_dir / 'importance-revenue.pdf')
 
     # --Verification time--
@@ -287,36 +273,18 @@ def evaluate(data_dir: pathlib.Path, results_dir: pathlib.Path, plot_dir: pathli
     print(results[results['target'] == 'verification.time'].groupby(['split_method', 'n_trees'])[
         ['train_score', 'test_score']].agg(['min', 'mean', 'median']).round(2))
 
-    # Figure 5a
-    plot_data = results[results['target'] == 'verification.time'].copy()
-    plot_data['split_method'] = plot_data['split_method'].replace(
-        {'capacity': 'Capacity', 'kfold': '10-fold', 'product': 'Product', 'reverse_kfold': 'Reverse 10-fold'})
-    plt.figure(figsize=(4, 3))
-    sns.boxplot(x='n_trees', y='test_score', hue='split_method', data=plot_data, palette='Set2')
-    plt.xlabel('Number of trees')
-    plt.ylabel('Test-set $R^2$')
-    leg = plt.legend(title='Split', edgecolor='white', loc='upper left', bbox_to_anchor=(0, -0.1),
-                     framealpha=0, ncol=2)
-    leg.get_title().set_position((-120, -22))
-    plt.ylim((0.8, 1.02))
-    plt.tight_layout()
+    # Figure 6a
+    plot_prediction_performance(results=results, target='verification.time',
+                                ylabel='Test-set $R^2$', ylim=(0.8, 1.02))
     plt.savefig(plot_dir / 'performance-time.pdf')
-
-    # Figure 5b
-    plot_data = results[(results['target'] == 'verification.time') & (results['n_trees'] == 100) &
-                        (results['split_method'] == 'kfold')].melt(
-        value_vars=importance_cols, var_name='Feature', value_name='Importance').dropna()
-    plot_data['Feature'] = plot_data['Feature'].str.replace('imp_(process\\.|property\\.)', '')
-    plot_data = plot_data.groupby('Feature').mean().reset_index()  # variation too low for boxplot
-    plt.figure(figsize=(4, 3))
-    sns.barplot(x='Feature', y='Importance', data=plot_data, color=plt.get_cmap('Set2')(0))
-    plt.xticks(rotation=45)
-    plt.tight_layout()
+    # Figure 6b
+    plot_feature_importance(results=results, target='verification.time')
     plt.savefig(plot_dir / 'importance-time.pdf')
 
     # ------Discussion------
 
-    print('\nWhat is the relative performance per target and split method for forests with 100 trees?')
+    print('\nWhat is the relative test-set performance (compared to k-fold) per target and',
+          'split method for forests with 100 trees?')
     agg_data = results[results['n_trees'] == 100].groupby(
         ['target', 'split_method'])['test_score'].mean().reset_index()
     agg_data = agg_data.merge(agg_data[agg_data['split_method'] == 'kfold'].drop(
@@ -333,7 +301,7 @@ if __name__ == '__main__':
                         help='Directory with input data, i.e., the auction-verification dataset.')
     parser.add_argument('-r', '--results', type=pathlib.Path, default='data/',
                         dest='results_dir', help='Directory with experimental results.')
-    parser.add_argument('-p', '--plots', type=pathlib.Path, default='../plots/',
+    parser.add_argument('-p', '--plots', type=pathlib.Path, default='data/',
                         dest='plot_dir', help='Output directory for plots.')
     print('Evaluation started.')
     evaluate(**vars(parser.parse_args()))
