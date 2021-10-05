@@ -1,10 +1,12 @@
-# Analysing and Predicting Verification of Process Models -- a Case Study with Spectrum Auctions
+# Analysing and Predicting Verification of Data-Aware Process Models -- a Case Study with Spectrum Auctions
 
 This repository contains the code of the paper
 
-> Ordoni, Elaheh, Jakob Bach, and Ann-Katrin Hanke. "Analysing and Predicting Verification of Process Models -- a Case Study with Spectrum Auctions"
+> Ordoni, Elaheh, Jakob Bach, and Ann-Katrin Hanke. "Analysing and Predicting Verification of Data-Aware Process Models -- a Case Study with Spectrum Auctions"
 
-(The paper is not published yet.)
+(The paper is not published yet.
+Once it's published, we'll add a link to it here.
+We'll link the experimental data, too.)
 This document describes the steps to reproduce the experiments.
 
 ## Setup
@@ -106,3 +108,14 @@ python -m run_experiments --help
 
 If you are fine with all input and output data to be stored in a directory called `data/`
 (at your current location, e.g., in this repo), you can stick to the default arguments of the scripts.
+
+## Creating the (Verification Result / Verification Time) Prediction Dataset
+
+The prediction pipeline automatically creates two prediction datasets,
+one for verification result and verification time, the other one for revenue.
+If you want to create the verification result/time prediction dataset on a standalone basis,
+obtain `auction_verification_large.csv` (as described above) and run
+
+```bash
+python -m create_prediction_dataset
+```
