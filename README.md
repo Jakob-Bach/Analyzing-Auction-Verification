@@ -2,12 +2,13 @@
 
 This repository contains the code of the paper
 
-> Ordoni, Elaheh, Jakob Bach, and Ann-Katrin Hanke. "Analysing and Predicting Verification of Data-Aware Process Models -- a Case Study with Spectrum Auctions"
+> Ordoni, Elaheh, Jakob Bach, and Ann-Katrin Hanke. "Analyzing and Predicting Verification of Data-Aware Process Models -- a Case Study with Spectrum Auctions"
 
-(The paper is not published yet.
+The paper has been accepted, but is not published yet.
 Once it's published, we'll add a link to it here.
-We'll link the experimental data, too.)
+
 This document describes the steps to reproduce the experiments.
+You can find the correspoding experimental data (inputs as well as results) on [KITopenData](https://doi.org/10.5445/IR/1000142949).
 
 ## Setup
 
