@@ -1,14 +1,13 @@
-# Analysing and Predicting Verification of Data-Aware Process Models -- a Case Study with Spectrum Auctions
+# Analyzing and Predicting Verification of Data-Aware Process Models -- a Case Study with Spectrum Auctions
 
 This repository contains the code of the paper
 
 > Ordoni, Elaheh, Jakob Bach, and Ann-Katrin Hanke. "Analyzing and Predicting Verification of Data-Aware Process Models -- a Case Study with Spectrum Auctions"
 
-The paper has been accepted, but is not published yet.
-Once it's published, we'll add a link to it here.
+published by [IEEE Access](https://www.doi.org/10.1109/ACCESS.2022.3154445) in 2022.
 
 This document describes the steps to reproduce the experiments.
-You can find the correspoding experimental data (inputs as well as results) on [KITopenData](https://doi.org/10.5445/IR/1000142949).
+You can find the corresponding experimental data (inputs as well as results) on [KITopenData](https://doi.org/10.5445/IR/1000142949).
 
 ## Setup
 
@@ -73,10 +72,6 @@ To leave the environment, run
 ```bash
 deactivate
 ```
-
-### Optional Dependencies
-
-To use the environment in the IDE `Spyder`, you need to install `spyder-kernels` into the environment.
 
 ## Reproducing the Experiments
 
