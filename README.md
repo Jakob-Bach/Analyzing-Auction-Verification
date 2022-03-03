@@ -7,7 +7,9 @@ This repository contains the code of the paper
 published by [IEEE Access](https://www.doi.org/10.1109/ACCESS.2022.3154445) in 2022.
 
 This document describes the steps to reproduce the experiments.
-You can find the corresponding experimental data (inputs as well as results) on [KITopenData](https://doi.org/10.5445/IR/1000142949).
+You can find the corresponding full experimental data (inputs as well as results) on [KITopenData](https://doi.org/10.5445/IR/1000142949).
+From the raw experimental data, we also extracted and pre-processed a smaller dataset that is suitable for training prediction models.
+This prediction dataset is available under the name `Auction Verification` in the [UCI Machine Learning Repository](https://archive-beta.ics.uci.edu/ml/datasets/auction+verification).
 
 ## Setup
 
@@ -115,3 +117,5 @@ obtain `auction_verification_large.csv` (as described above) and run
 ```bash
 python -m create_prediction_dataset
 ```
+
+This is the dataset we published in the UCI repo under the name `Auction Verification`.
